@@ -2,8 +2,8 @@
 /*
 Plugin Name: WC iPhone Swapper
 Description: A WooCommerce plugin for calculating iPhone swap top-up amounts.
-Version: 1.2
-Author: Your Name
+Version: 1.0
+Author: Imokol Faith Ruth, Kasirye Arthur
 */
 
 if (!defined('ABSPATH')) exit; // Exit if accessed directly
@@ -103,8 +103,10 @@ function wcis_iphone_swap_calculator() {
                     </select>
                 </div>
                 <input type="hidden" id="product_id" value="<?php echo $swap_product_id; ?>">
-                <button type="button" onclick="calculateDifference()">Get Estimate</button>
-                <button type="button" id="checkoutButton" style="display:none;" onclick="goToCheckout(event)">Proceed to Checkout</button>
+                <div class="form-group form-group-btn">
+                    <button type="button" onclick="calculateDifference()">Get Estimate</button>
+                    <button type="button" id="checkoutButton" style="display:none;" onclick="goToCheckout(event)">Proceed to Checkout</button>
+                </div>
             </form>
 
             <h2 id="result"></h2>
@@ -148,7 +150,6 @@ function wcis_apply_custom_top_up_price($cart) {
 	if (is_admin() && !defined('DOING_AJAX')) return;
 
 	foreach ($cart->get_cart() as $cart_item) {
-        error_log(print_r($cart_item, true));
 		if (isset($cart_item['top_up_amount'])) {
 			// Set the cart item price to the custom top-up amount
 			$cart_item['data']->set_price($cart_item['top_up_amount']);
