@@ -20,16 +20,18 @@ function calculateDifference() {
     document.getElementById('checkoutButton').style.display = 'block';
 }
 
-function goToCheckout() {
+function goToCheckout(event) {
+    event.preventDefault();
     const topUpAmount = document.getElementById('checkoutButton').getAttribute('data-top-up-amount');
+    const product_id = document.getElementById('product_id').value;
 
     jQuery.post(
         wcis_params.ajaxurl,
         {
             action: 'add_swap_product_to_cart',
-            product_id: wcis_params.checkout_url,
+            product_id: product_id,
             top_up_amount: topUpAmount
-        }).done(function() {
-        window.location.href = '<?php echo wc_get_checkout_url(); ?>';
+        }).done(function(res) {
+        window.location.href = wcis_params.checkout_url;
     });
 }

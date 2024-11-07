@@ -8,10 +8,26 @@ Author: Your Name
 
 if (!defined('ABSPATH')) exit; // Exit if accessed directly
 
+// Enqueue any necessary styles or scripts
+function wcis_iphone_swapper_enqueue_scripts() {
+	wp_enqueue_style('wc-iphone-swapper-style', plugins_url('assets/css/style.css', __FILE__));
+
+    wp_enqueue_script( 'wc-iphone-swapper-script', plugins_url('assets/js/script.js', __FILE__));
+    wp_localize_script(
+            'wc-iphone-swapper-script',
+        'wcis_params',
+        array(
+                'ajaxurl' => admin_url( 'admin-ajax.php' ),
+            'checkout_url' => wc_get_checkout_url(),
+        )
+    );
+}
+add_action('wp_enqueue_scripts', 'wcis_iphone_swapper_enqueue_scripts');
+
 // Function to create the hidden "iPhone Swap Top-Up" product
-function wc_create_hidden_swap_product() {
+function wcis_create_hidden_swap_product( $title ) {
 	$args = array(
-		'title'     => 'iPhone Swap Top-Up',
+		'title'     => $title,
 		'post_type' => 'product',
 		'post_status' => 'private',
 		'numberposts' => 1,
@@ -23,28 +39,34 @@ function wc_create_hidden_swap_product() {
 		$product->set_name('iPhone Swap Top-Up');
 		$product->set_status('private'); // Hidden from the public catalog
 		$product->set_catalog_visibility('hidden'); // Hidden visibility
-		$product->set_price(0); // Initial price is set to 0
+		$product->set_price(0);
+		$product->set_regular_price(0); // Ensure regular price is set to avoid issues
+		$product->set_stock_status('instock');
+		$product->set_manage_stock(false);
+		$product->set_backorders('no');
 		$product->save();
+
 		return $product->get_id();
 	}
 
 	return $existing_product[0]->ID;
 }
 
+
 // Register the shortcode
-function wc_iphone_swap_calculator() {
+function wcis_iphone_swap_calculator() {
 	ob_start();
 
 	// Ensure the hidden product is created and get its ID
-	$swap_product_id = wc_create_hidden_swap_product();
+	$swap_product_id = wcis_create_hidden_swap_product('iPhone Swap Top-Up' );
 
 	// WooCommerce product query for iPhone products (replace 'iphone' with your iPhone category slug)
 	$args = array(
 		'post_type' => 'product',
 		'posts_per_page' => -1,
-		'product_cat' => 'iphone', // Adjust the category slug as needed
 		'orderby' => 'title',
-		'order' => 'ASC'
+		'order' => 'ASC',
+        'post_status' => 'publish',
 	);
 	$iphones = new WP_Query($args);
 
@@ -80,22 +102,22 @@ function wc_iphone_swap_calculator() {
 						<?php endwhile; ?>
                     </select>
                 </div>
-
+                <input type="hidden" id="product_id" value="<?php echo $swap_product_id; ?>">
                 <button type="button" onclick="calculateDifference()">Get Estimate</button>
+                <button type="button" id="checkoutButton" style="display:none;" onclick="goToCheckout(event)">Proceed to Checkout</button>
             </form>
 
             <h2 id="result"></h2>
-            <button id="checkoutButton" style="display:none;" onclick="goToCheckout()">Proceed to Checkout</button>
         </div>
 	<?php endif;
 
 	wp_reset_postdata();
 	return ob_get_clean();
 }
-add_shortcode('wc_iphone_swap_calculator', 'wc_iphone_swap_calculator');
+add_shortcode('wc_iphone_swap_calculator', 'wcis_iphone_swap_calculator');
 
 // AJAX handler to add the hidden product to the cart with the calculated top-up amount
-function wc_add_swap_product_to_cart() {
+function wcis__add_swap_product_to_cart() {
 	if (!empty($_POST['product_id']) && !empty($_POST['top_up_amount'])) {
 		$product_id = intval($_POST['product_id']);
 		$top_up_amount = floatval($_POST['top_up_amount']);
@@ -103,16 +125,33 @@ function wc_add_swap_product_to_cart() {
 		WC()->cart->empty_cart(); // Clear the cart
 		WC()->cart->add_to_cart($product_id, 1, '', '', array('top_up_amount' => $top_up_amount));
 
-		// Set the price of the product in the cart dynamically
-		add_filter('woocommerce_before_calculate_totals', function($cart) use ($product_id, $top_up_amount) {
-			foreach ($cart->get_cart() as $cart_item) {
-				if ($cart_item['product_id'] == $product_id) {
-					$cart_item['data']->set_price($top_up_amount);
-				}
-			}
-		});
+		wp_send_json_success(array('checkout_page' => wc_get_checkout_url()));
 	}
 	wp_die();
 }
-add_action('wp_ajax_add_swap_product_to_cart', 'wc_add_swap_product_to_cart');
-add_action('wp_ajax_nopriv_add_swap_product_to_cart', 'wc_add_swap_product_to_cart');
+add_action('wp_ajax_add_swap_product_to_cart', 'wcis_add_swap_product_to_cart');
+add_action('wp_ajax_nopriv_add_swap_product_to_cart', 'wcis_add_swap_product_to_cart');
+
+
+// Ensure the hidden product is purchasable
+add_filter('woocommerce_is_purchasable', 'wcis_make_hidden_product_purchasable', 10, 2);
+function wcis_make_hidden_product_purchasable($purchasable, $product) {
+	// Replace with your hidden product's title or ID for more specificity
+	if ($product->get_name() === 'iPhone Swap Top-Up') {
+		$purchasable = true;
+	}
+	return $purchasable;
+}
+
+add_action('woocommerce_before_calculate_totals', 'wcis_apply_custom_top_up_price', 10, 1);
+function wcis_apply_custom_top_up_price($cart) {
+	if (is_admin() && !defined('DOING_AJAX')) return;
+
+	foreach ($cart->get_cart() as $cart_item) {
+        error_log(print_r($cart_item, true));
+		if (isset($cart_item['top_up_amount'])) {
+			// Set the cart item price to the custom top-up amount
+			$cart_item['data']->set_price($cart_item['top_up_amount']);
+		}
+	}
+}
