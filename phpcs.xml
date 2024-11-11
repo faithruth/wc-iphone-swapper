@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<ruleset name="Streamline Data Sync">
+
+	<ini name="error_reporting" value="E_ALL &#38; ~E_DEPRECATED" />
+	<ini name="memory_limit" value="2560M"/>
+	<arg name="extensions" value="php" />
+
+	<file>.</file>
+
+	<rule ref="WordPress">
+		<exclude name="WordPress.Files.FileName.NotHyphenatedLowercase" />
+		<exclude name="WordPress.Files.FileName.InvalidClassFileName" />
+		<exclude name="PSR2.Classes.PropertyDeclaration.Underscore" />
+		<exclude name="WordPress.PHP.YodaConditions.NotYoda" />
+		<exclude name="Generic.Arrays.DisallowShortArraySyntax.Found" />
+		<exclude name="WordPress.DB.PreparedSQL.InterpolatedNotPrepared" />
+		<exclude name="WordPress.DB.PreparedSQL.NotPrepared" />
+		<exclude name="WordPress.Security.NonceVerification.Missing" />
+		<exclude name="WordPress.PHP.NoSilencedErrors.Discouraged" />
+		<exclude name="WordPress.Security.ValidatedSanitizedInput.InputNotValidated" />
+		<exclude name="Squiz.Commenting.FunctionComment.Missing" />
+		<exclude name="WordPress.Security.ValidatedSanitizedInput.InputNotSanitized" />
+		<exclude name="WordPress.Security.ValidatedSanitizedInput.MissingUnslash" />
+		<exclude name="WordPress.Security.EscapeOutput.OutputNotEscaped" />
+	</rule>
+
+	<exclude-pattern>/node_modules/*</exclude-pattern>
+	<exclude-pattern>assets</exclude-pattern>
+	<exclude-pattern>core/ACF</exclude-pattern>
+	<exclude-pattern>languages</exclude-pattern>
+	<exclude-pattern>helpers/tgma-load.php</exclude-pattern>
+	<exclude-pattern>helpers/class-tgm-plugin-activation.php</exclude-pattern>
+	<exclude-pattern>lib</exclude-pattern>
+	<exclude-pattern>vendor</exclude-pattern>
+	<exclude-pattern>tests</exclude-pattern>
+	<exclude-pattern>docs</exclude-pattern>
+	<exclude-pattern>template-parts</exclude-pattern>
+	<exclude-pattern>.phpstan</exclude-pattern>
+	<exclude-pattern>/freemius/</exclude-pattern>
+</ruleset>
