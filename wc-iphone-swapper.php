@@ -1,10 +1,17 @@
 <?php
-/*
-Plugin Name: WC iPhone Swapper
-Description: A WooCommerce plugin for calculating iPhone swap top-up amounts.
-Version: 1.0
-Author: Imokol Faith Ruth, Kasirye Arthur
-*/
+/**
+ * Plugin Name:       WC iPhone Swapper
+ * Plugin URI:        hhttps://github.com/faithruth/wc-iphone-swapper
+ * Description:       A WooCommerce plugin for calculating iPhone swap top-up amounts.
+ * Author:            Imokol Faith Ruth & Kasirye Arthur
+ * Author URI:        https://github.com/faithruth/wc-iphone-swapper
+ * Version:           1.0
+ * Requires PHP:      8.0
+ * Requires at least: 6.0
+ * Domain Path:       /languages/
+ * Text Domain:       wc-iphone-swapper
+ *
+ */
 
 if (!defined('ABSPATH')) exit; // Exit if accessed directly
 
@@ -21,6 +28,7 @@ function wcis_iphone_swapper_enqueue_scripts() {
             'checkout_url' => wc_get_checkout_url(),
         )
     );
+
 }
 add_action('wp_enqueue_scripts', 'wcis_iphone_swapper_enqueue_scripts');
 
@@ -80,10 +88,12 @@ function wcis_iphone_swap_calculator() {
 						<?php while ($iphones->have_posts()) : $iphones->the_post(); ?>
 							<?php
 							$product = wc_get_product(get_the_ID());
+			                if ($product && $product->is_in_stock()) :
 							?>
-                            <option value="<?php echo esc_attr($product->get_price()); ?>">
-								<?php echo esc_html($product->get_name()); ?>
-                            </option>
+                                <option value="<?php echo esc_attr($product->get_id()); ?>" data-price="<?php echo esc_attr($product->get_price()); ?>">
+                                    <?php echo esc_html($product->get_name()); ?>
+                                </option>
+                                <?php endif; ?>
 						<?php endwhile; ?>
                     </select>
                 </div>
@@ -95,10 +105,12 @@ function wcis_iphone_swap_calculator() {
 						$iphones->rewind_posts();
 						while ($iphones->have_posts()) : $iphones->the_post();
 							$product = wc_get_product(get_the_ID());
+							if ($product && $product->is_in_stock()) :
 							?>
-                            <option value="<?php echo esc_attr($product->get_price()); ?>">
-								<?php echo esc_html($product->get_name()); ?>
-                            </option>
+                                <option value="<?php echo esc_attr($product->get_id()); ?>" data-price="<?php echo esc_attr($product->get_price()); ?>">
+                                    <?php echo esc_html($product->get_name()); ?>
+                                </option>
+							<?php endif; ?>
 						<?php endwhile; ?>
                     </select>
                 </div>
@@ -119,13 +131,31 @@ function wcis_iphone_swap_calculator() {
 add_shortcode('wc_iphone_swap_calculator', 'wcis_iphone_swap_calculator');
 
 // AJAX handler to add the hidden product to the cart with the calculated top-up amount
-function wcis__add_swap_product_to_cart() {
+function wcis_add_swap_product_to_cart() {
 	if (!empty($_POST['product_id']) && !empty($_POST['top_up_amount'])) {
 		$product_id = intval($_POST['product_id']);
 		$top_up_amount = floatval($_POST['top_up_amount']);
+		$current_iphone_id = sanitize_text_field($_POST['current_iphone']);
+		$desired_iphone_id = sanitize_text_field($_POST['desired_iphone']);
+
+		$current_iphone = wc_get_product($current_iphone_id);
+        error_log(print_r($current_iphone, true));
+		$desired_iphone = wc_get_product($desired_iphone_id);
 
 		WC()->cart->empty_cart(); // Clear the cart
-		WC()->cart->add_to_cart($product_id, 1, '', '', array('top_up_amount' => $top_up_amount));
+		WC()->cart->add_to_cart(
+                $product_id,
+                1,
+                '',
+                '',
+                array(
+                        'top_up_amount' => $top_up_amount,
+                        'current_iphone' => $current_iphone->get_name(),
+                        'desired_iphone' => $desired_iphone->get_name(),
+                        'unique_key' => md5($current_iphone . $desired_iphone . microtime()) // Ensures unique cart item
+
+                )
+        );
 
 		wp_send_json_success(array('checkout_page' => wc_get_checkout_url()));
 	}
@@ -154,5 +184,56 @@ function wcis_apply_custom_top_up_price($cart) {
 			// Set the cart item price to the custom top-up amount
 			$cart_item['data']->set_price($cart_item['top_up_amount']);
 		}
+	}
+}
+
+// Save selected iPhones to order meta
+add_action('woocommerce_checkout_create_order', 'wcis_save_iphone_swap_details_to_order', 10, 2);
+function wcis_save_iphone_swap_details_to_order($order, $data) {
+	foreach (WC()->cart->get_cart() as $cart_item) {
+		if (isset($cart_item['current_iphone']) && isset($cart_item['desired_iphone'])) {
+			$order->update_meta_data('_current_iphone', $cart_item['current_iphone']);
+			$order->update_meta_data('_desired_iphone', $cart_item['desired_iphone']);
+		}
+	}
+}
+
+// Display iPhone details in the order admin page
+add_action('woocommerce_admin_order_data_after_order_details', 'wcis_display_iphone_swap_details_in_order_admin');
+function wcis_display_iphone_swap_details_in_order_admin($order) {
+	$current_iphone = $order->get_meta('_current_iphone');
+	$desired_iphone = $order->get_meta('_desired_iphone');
+
+	if ($current_iphone && $desired_iphone) {
+		echo '<p><strong>Old iPhone:</strong> ' . esc_html($current_iphone) . '</p>';
+		echo '<p><strong>New iPhone:</strong> ' . esc_html($desired_iphone) . '</p>';
+	}
+}
+add_filter('woocommerce_get_item_data', 'wcis_display_iphone_swap_details_in_cart', 10, 2);
+function wcis_display_iphone_swap_details_in_cart($item_data, $cart_item) {
+	if (!empty($cart_item['current_iphone'])) {
+		$item_data[] = array(
+			'key' => __('Old iPhone', 'wc-iphone-swapper'),
+			'value' => wc_clean($cart_item['current_iphone']),
+			'display' => wc_clean($cart_item['current_iphone']),
+		);
+	}
+	if (!empty($cart_item['desired_iphone'])) {
+		$item_data[] = array(
+			'key' => __('New iPhone', 'wc-iphone-swapper'),
+			'value' => wc_clean($cart_item['desired_iphone']),
+			'display' => wc_clean($cart_item['desired_iphone']),
+		);
+	}
+	return $item_data;
+}
+
+add_action('woocommerce_checkout_create_order_line_item', 'wcis_add_iphone_swap_details_to_order_items', 10, 4);
+function wcis_add_iphone_swap_details_to_order_items($item, $cart_item_key, $values, $order) {
+	if (!empty($values['current_iphone'])) {
+		$item->add_meta_data(__('Old iPhone', 'wc-iphone-swapper'), $values['current_iphone'], true);
+	}
+	if (!empty($values['desired_iphone'])) {
+		$item->add_meta_data(__('New iPhone', 'wc-iphone-swapper'), $values['desired_iphone'], true);
 	}
 }

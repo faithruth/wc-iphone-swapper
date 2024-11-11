@@ -1,6 +1,10 @@
 function calculateDifference() {
-    const currentPhonePrice = parseFloat(document.getElementById('currentPhone').value);
-    const desiredPhonePrice = parseFloat(document.getElementById('desiredPhone').value);
+    const currentPhoneSelect = document.getElementById("currentPhone");
+    const desiredPhoneSelect = document.getElementById("desiredPhone");
+
+    const currentPhonePrice = parseFloat(currentPhoneSelect.options[currentPhoneSelect.selectedIndex].dataset.price);
+    const desiredPhonePrice = parseFloat(desiredPhoneSelect.options[desiredPhoneSelect.selectedIndex].dataset.price);
+
     const difference = desiredPhonePrice - currentPhonePrice;
 
     const resultElement = document.getElementById('result');
@@ -24,13 +28,17 @@ function goToCheckout(event) {
     event.preventDefault();
     const topUpAmount = document.getElementById('checkoutButton').getAttribute('data-top-up-amount');
     const product_id = document.getElementById('product_id').value;
+    const currentIphone = document.getElementById('currentPhone').value;
+    const desiredIphone = document.getElementById('desiredPhone').value;
 
     jQuery.post(
         wcis_params.ajaxurl,
         {
             action: 'add_swap_product_to_cart',
             product_id: product_id,
-            top_up_amount: topUpAmount
+            top_up_amount: topUpAmount,
+            current_iphone: currentIphone,
+            desired_iphone: desiredIphone
         }).done(function(res) {
         window.location.href = wcis_params.checkout_url;
     });
