@@ -90,71 +90,120 @@ function wcis_create_hidden_swap_product( $title ) {
  *
  * @return false|string
  */
+/**
+ * Register the shortcode
+ *
+ * @return false|string
+ */
 function wcis_iphone_swap_calculator() {
 	ob_start();
 
 	// Ensure the hidden product is created and get its ID.
 	$swap_product_id = wcis_create_hidden_swap_product( 'iPhone Swap Top-Up' );
 
-	$args    = array(
+	$args = array(
 		'post_type'      => 'product',
 		'posts_per_page' => -1,
 		'orderby'        => 'title',
 		'order'          => 'ASC',
 		'post_status'    => 'publish',
 	);
+
+	$category = get_term_by( 'name', 'iphones', 'product_cat' );
+	if ( $category ) {
+		$category_id = $category->term_id;
+		$args['tax_query'] = array(
+			array(
+				'taxonomy' => 'product_cat',
+				'field'    => 'term_id',
+				'terms'    => $category_id,
+			),
+		);
+	}
 	$iphones = new WP_Query( $args );
 
 	if ( $iphones->have_posts() ) : ?>
-		<div class="container">
-			<h1>iPhone Swap Calculator</h1>
-			<form id="swapForm">
-				<div class="form-group">
-					<label for="currentPhone">Current iPhone:</label>
-					<select id="currentPhone" name="currentPhone">
+        <div class="container">
+            <h1>iPhone Swap Calculator</h1>
+            <form id="swapForm">
+                <div class="form-group">
+                    <label for="currentPhone">Current iPhone:</label>
+                    <select id="currentPhone" name="currentPhone">
 						<?php
 						while ( $iphones->have_posts() ) :
 							$iphones->the_post();
-							?>
-							<?php
 							$product = wc_get_product( get_the_ID() );
-							if ( $product && $product->is_in_stock() ) :
-								?>
-								<option value="<?php echo esc_attr( $product->get_id() ); ?>" data-price="<?php echo esc_attr( $product->get_price() ); ?>">
-									<?php echo esc_html( $product->get_name() ); ?>
-								</option>
-								<?php endif; ?>
-						<?php endwhile; ?>
-					</select>
-				</div>
 
-				<div class="form-group">
-					<label for="desiredPhone">Desired iPhone:</label>
-					<select id="desiredPhone" name="desiredPhone">
+							// Check if the product is variable
+							if ( $product && $product->is_type( 'variable' ) && $product->is_in_stock() ) {
+								$variations = $product->get_available_variations();
+
+								// Display each variation as an option
+								foreach ( $variations as $variation ) {
+									$variation_product = wc_get_product( $variation['variation_id'] );
+									?>
+                                    <option value="<?php echo esc_attr( $variation_product->get_id() ); ?>" data-price="<?php echo esc_attr( $variation_product->get_price() ); ?>">
+										<?php echo esc_html( $product->get_name() . ' - ' . $variation_product->get_attribute_summary() ); ?>
+                                    </option>
+									<?php
+								}
+							} elseif ( $product && $product->is_in_stock() ) {
+								// For simple products
+								?>
+                                <option value="<?php echo esc_attr( $product->get_id() ); ?>" data-price="<?php echo esc_attr( $product->get_price() ); ?>">
+									<?php echo esc_html( $product->get_name() ); ?>
+                                </option>
+								<?php
+							}
+						endwhile;
+						?>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="desiredPhone">Desired iPhone:</label>
+                    <select id="desiredPhone" name="desiredPhone">
 						<?php
 						$iphones->rewind_posts();
 						while ( $iphones->have_posts() ) :
 							$iphones->the_post();
 							$product = wc_get_product( get_the_ID() );
-							if ( $product && $product->is_in_stock() ) :
-								?>
-								<option value="<?php echo esc_attr( $product->get_id() ); ?>" data-price="<?php echo esc_attr( $product->get_price() ); ?>">
-									<?php echo esc_html( $product->get_name() ); ?>
-								</option>
-							<?php endif; ?>
-						<?php endwhile; ?>
-					</select>
-				</div>
-				<input type="hidden" id="product_id" value="<?php echo $swap_product_id; ?>">
-				<div class="form-group form-group-btn">
-					<button type="button" onclick="calculateDifference()">Get Estimate</button>
-					<button type="button" id="checkoutButton" style="display:none;" onclick="goToCheckout(event)">Proceed to Checkout</button>
-				</div>
-			</form>
 
-			<h2 id="result"></h2>
-		</div>
-		<?php
+							// Check if the product is variable
+							if ( $product && $product->is_type( 'variable' ) && $product->is_in_stock() ) {
+								$variations = $product->get_available_variations();
+
+								// Display each variation as an option
+								foreach ( $variations as $variation ) {
+									$variation_product = wc_get_product( $variation['variation_id'] );
+									?>
+                                    <option value="<?php echo esc_attr( $variation_product->get_id() ); ?>" data-price="<?php echo esc_attr( $variation_product->get_price() ); ?>">
+										<?php echo esc_html( $product->get_name() . ' - ' . $variation_product->get_attribute_summary() ); ?>
+                                    </option>
+									<?php
+								}
+							} elseif ( $product && $product->is_in_stock() ) {
+								// For simple products
+								?>
+                                <option value="<?php echo esc_attr( $product->get_id() ); ?>" data-price="<?php echo esc_attr( $product->get_price() ); ?>">
+									<?php echo esc_html( $product->get_name() ); ?>
+                                </option>
+								<?php
+							}
+						endwhile;
+						?>
+                    </select>
+                </div>
+                <input type="hidden" id="product_id" value="<?php echo $swap_product_id; ?>">
+                <div class="form-group form-group-btn">
+                    <button type="button" onclick="calculateDifference()">Get Estimate</button>
+                    <button type="button" id="checkoutButton" style="display:none;" onclick="goToCheckout(event)">Proceed to Checkout</button>
+                </div>
+            </form>
+
+            <h2 id="result"></h2>
+        </div>
+	<?php
 	endif;
 
 	wp_reset_postdata();
