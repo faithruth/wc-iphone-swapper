@@ -137,7 +137,6 @@ function wcis_iphone_swap_calculator() {
 							// Check if the product is variable
 							if ( $product && $product->is_type( 'variable' ) && $product->is_in_stock() ) {
 								$variations = $product->get_available_variations();
-
 								// Display each variation as an option
 								foreach ( $variations as $variation ) {
 									$variation_product = wc_get_product( $variation['variation_id'] );
@@ -219,7 +218,7 @@ add_shortcode( 'wc_iphone_swap_calculator', 'wcis_iphone_swap_calculator' );
 function wcis_add_swap_product_to_cart() {
 	if ( ! empty( $_POST['product_id'] ) && ! empty( $_POST['top_up_amount'] ) ) {
 		$product_id        = intval( $_POST['product_id'] );
-		$top_up_amount     = floatval( $_POST['top_up_amount'] );
+		$top_up_amount     = $_POST['top_up_amount'];
 		$current_iphone_id = sanitize_text_field( $_POST['current_iphone'] );
 		$desired_iphone_id = sanitize_text_field( $_POST['desired_iphone'] );
 
