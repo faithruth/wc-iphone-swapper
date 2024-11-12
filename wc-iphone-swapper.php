@@ -225,6 +225,7 @@ function wcis_add_swap_product_to_cart() {
 		$current_iphone = wc_get_product( $current_iphone_id );
 		$desired_iphone = wc_get_product( $desired_iphone_id );
 
+		WC()->cart->empty_cart();
 		WC()->cart->add_to_cart(
 			$product_id,
 			1,
